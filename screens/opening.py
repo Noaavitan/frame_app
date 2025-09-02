@@ -4,7 +4,7 @@ import flet as ft
 DRONE_IMG = "image/drone_bkrnd2.png"
 
 def build_opening_screen(on_start):
-    title = ft.Text("תקן פריים", size=88, weight=ft.FontWeight.BOLD, color="#eeeeee")
+    title = ft.Text("תקן פריים", size=88, weight=ft.FontWeight.BOLD, color="#eeeeee",  text_align=ft.TextAlign.CENTER)
 
     start_btn = ft.ElevatedButton(
         text="בואו נלבין",
@@ -22,12 +22,12 @@ def build_opening_screen(on_start):
         [title, start_btn],
         spacing=44,
         alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.START,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
     right = ft.Container(
         content=ft.Image(src=DRONE_IMG, fit=ft.ImageFit.CONTAIN),
-        expand=1, padding=20,
+        expand=1, padding=40,
     )
 
     layout = ft.Row(

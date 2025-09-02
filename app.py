@@ -12,6 +12,7 @@ def main(page: ft.Page):
     page.bgcolor = "#000000"
     page.horizontal_alignment = "center"
     page.vertical_alignment = "center"
+    page.rtl = True
 
     # דיאלוג קצר בזמן הכנה
     setup_dlg = ft.AlertDialog(

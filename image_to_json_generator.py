@@ -6,10 +6,82 @@ import re
 from xml.etree import ElementTree as ET
 import math
 from datetime import datetime
+from pathlib import Path
+from shutil import which
+import shutil
+import base64
 
-# Add ExifTool path
-EXIFTOOL_PATH =  r"C:\exiftool-13.32_64\exiftool.exe"
 
+def _read_drone_type_from_config(folder_path: str) -> str:
+    """
+    קורא את config.json (אם קיים) ומחזיר את שדה 'drone_type'.
+    אם לא קיים או ריק – מחזיר מחרוזת ברירת מחדל.
+    """
+    cfg_path = os.path.join(folder_path, "config.json")
+    try:
+        if os.path.exists(cfg_path):
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                dt = (cfg.get("drone_type") or "").strip()
+                if dt:
+                    return dt
+    except Exception as e:
+        print(f"Warning: could not read config.json: {e}")
+    return "Unknown platform"
+
+
+# -------------------------------
+# ExifTool resolution & wrapper
+# -------------------------------
+
+def resolve_exiftool_path() -> str | None:
+    """
+    מחפש את exiftool.exe לפי הסדר:
+    1) משתנה סביבה EXIFTOOL_PATH
+    2) ב-PATH (which)
+    3) נתיבים יחסיים נפוצים ליד הקובץ הזה
+    """
+    # 1) EXIFTOOL_PATH מהסביבה
+    env_p = os.environ.get("EXIFTOOL_PATH")
+    if env_p and os.path.exists(env_p):
+        return env_p
+
+    # 2) PATH
+    w = which("exiftool")
+    if w and os.path.exists(w):
+        return w
+
+    # 3) חיפוש מקומי ליד הקובץ
+    here = Path(__file__).resolve().parent
+    local_candidates = [
+        here / "exiftool-13.30_64" / "exiftool.exe",
+        here / "exiftool-13.32_64" / "exiftool.exe",
+        here / "exiftool.exe",
+    ]
+    for c in local_candidates:
+        if c.is_file():
+            return str(c)
+
+    return None
+
+EXIFTOOL_PATH = resolve_exiftool_path()
+
+def run_exiftool(args: list[str]) -> subprocess.CompletedProcess:
+    """
+    הרצה בטוחה של ExifTool (ללא shell=True).
+    זורק חריגות אם אין EXIFTOOL או אם ההרצה נכשלה (check=True).
+    """
+    if not EXIFTOOL_PATH:
+        raise FileNotFoundError(
+            "ExifTool לא נמצא. עדכן את EXIFTOOL_PATH, הוסף ל-PATH, או ודא שהקובץ exiftool.exe קיים ליד הסקריפט."
+        )
+    cmd = [EXIFTOOL_PATH] + args
+    return subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+
+# -------------------------------
+# EXIF / XMP helpers
+# -------------------------------
 
 def get_decimal_from_dms(dms, ref):
     """
@@ -105,27 +177,32 @@ def calculate_resolution(width, height, fov_x, fov_y, altitude):
     return round((resolution_x + resolution_y) / 2, 5) if (resolution_x and resolution_y) else 0.0
 
 def get_los_fields(image_path):
+    """
+    מחלץ זוויות/כיוונים של הגימבל באמצעות ExifTool.
+    מחזיר always dict עם מפתחות losAzimuth/losPitch/losRoll.
+    """
     try:
-        result = subprocess.run(
-            [EXIFTOOL_PATH, "-json", "-GimbalYawDegree", "-GimbalPitchDegree", "-GimbalRollDegree", image_path],
-            capture_output=True,
-            text=True
-        )
-        data = json.loads(result.stdout)[0]
+        # -n לקבלת ערכים נומריים (ללא '+'), -json להחזרה במבנה JSON
+        cp = run_exiftool(["-n", "-json", "-GimbalYawDegree", "-GimbalPitchDegree", "-GimbalRollDegree", image_path])
+        data = json.loads(cp.stdout)[0] if cp.stdout else {}
 
-        def clean_value(val):
-            if isinstance(val, str) and val.startswith('+'):
-                val = val[1:]
+        def to_float(val):
             try:
                 return float(val)
-            except:
+            except Exception:
                 return 0.0
 
         return {
-            "losAzimuth": clean_value(data.get("GimbalYawDegree")),
-            "losPitch": clean_value(data.get("GimbalPitchDegree")),
-            "losRoll": clean_value(data.get("GimbalRollDegree"))
+            "losAzimuth": to_float(data.get("GimbalYawDegree")),
+            "losPitch": to_float(data.get("GimbalPitchDegree")),
+            "losRoll": to_float(data.get("GimbalRollDegree")),
         }
+    except FileNotFoundError as e:
+        print(f"Warning: ExifTool not found: {e}")
+        return {"losAzimuth": 0.0, "losPitch": 0.0, "losRoll": 0.0}
+    except subprocess.CalledProcessError as e:
+        print(f"Warning: ExifTool failed: {e.stderr.strip() if e.stderr else e}")
+        return {"losAzimuth": 0.0, "losPitch": 0.0, "losRoll": 0.0}
     except Exception as e:
         print(f"Warning: Could not extract LOS fields: {e}")
         return {"losAzimuth": 0.0, "losPitch": 0.0, "losRoll": 0.0}
@@ -145,6 +222,11 @@ def extract_relative_altitude(image_path):
         return float(val.lstrip("+"))
     except ValueError:
         return 0.0
+
+
+# -------------------------------
+# JSON builders
+# -------------------------------
 
 def build_basic_data(filename, tags, full_path):
     width = int(str(tags.get("EXIF ExifImageWidth", "0")))
@@ -256,9 +338,9 @@ def build_camera_position(tags, lat, lon, image_path):
         "losRoll": los_fields["losRoll"]
     }
 
-def build_platform_data(tags):
+def build_platform_data(tags, drone_type: str):
     return {
-        "platformName": "Padam DJI",
+        "platformName": drone_type,
         "platformId": None,
         "trueCourse": get_float("GPS GPSTrack", tags, 0.0),
         "groundSpeed": 0.01,
@@ -281,15 +363,20 @@ def build_sensor_specific_data():
         "groundRef": None
     }
 
-def build_json_structure(filename, tags, lat, lon, full_path):
+def build_json_structure(filename, tags, lat, lon, full_path, drone_type: str):
     return {
         "BasicData": build_basic_data(filename, tags, full_path),
         "CameraData": build_camera_data(tags),
         "CameraPosition": build_camera_position(tags, lat, lon, full_path),
-        "PlatformData": build_platform_data(tags),
+        "PlatformData": build_platform_data(tags, drone_type),
         "Operational": build_operational_data(),
         "SensorSpecificData": build_sensor_specific_data(),
     }
+
+
+# -------------------------------
+# JPW / QGIS helpers
+# -------------------------------
 
 def create_jpw_from_json(json_filepath):
     try:
@@ -340,81 +427,6 @@ def create_jpw_from_json(json_filepath):
     except IOError as e:
         print(f"Error writing JPW file: {e}")
 
-def process_images_to_individual_json(folder_path):
-    output_dir = os.path.join(folder_path, "output")
-    fail_output_dir = os.path.join(folder_path, "fail_output")
-    os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(fail_output_dir, exist_ok=True)
-
-    print(f"Looking for images in: {folder_path}")
-    files = os.listdir(folder_path)
-    print(f"Found {len(files)} files")
-
-    total_images = 0
-    successful_extractions = 0
-    failed_extractions = 0
-
-    for filename in files:
-        if filename.lower().endswith(('.jpg', '.jpeg')):
-            total_images += 1
-            print(f"\nProcessing: {filename}")
-            full_path = os.path.join(folder_path, filename)
-
-            try:
-                with open(full_path, 'rb') as img_file:
-                    tags = exifread.process_file(img_file, details=True)
-                    lat, lon = extract_gps_info_from_tags(tags)
-
-                    los_fields = get_los_fields(full_path)
-                    relative_alt = extract_relative_altitude(full_path)
-
-                    has_los_fields = (los_fields["losAzimuth"] != 0.0 and
-                                      los_fields["losPitch"] != 0.0)
-                    has_relative_alt = relative_alt != 0.0
-
-                    json_data = build_json_structure(filename, tags, lat, lon, full_path)
-
-                    if has_los_fields and has_relative_alt:
-                        output_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.json")
-                        successful_extractions += 1
-                        print(f"✅ Successfully extracted critical fields: {output_path}")
-                    else:
-                        output_path = os.path.join(fail_output_dir, f"{os.path.splitext(filename)[0]}.json")
-                        failed_extractions += 1
-                        missing_fields = []
-                        if not has_los_fields:
-                            missing_fields.append("LOS fields (azimuth/pitch)")
-                        if not has_relative_alt:
-                            missing_fields.append("relative altitude")
-                        print(f"⚠️ Missing critical fields ({', '.join(missing_fields)}): {output_path}")
-
-                    with open(output_path, 'w') as json_file:
-                        json.dump(json_data, json_file, indent=4)
-            except Exception as e:
-                failed_extractions += 1
-                print(f"❌ Failed to process {filename}: {str(e)}")
-                try:
-                    with open(full_path, 'rb') as img_file:
-                        tags = exifread.process_file(img_file, details=True)
-                        lat, lon = extract_gps_info_from_tags(tags)
-                        json_data = build_json_structure(filename, tags, lat, lon, full_path)
-                        output_path = os.path.join(fail_output_dir, f"{os.path.splitext(filename)[0]}.json")
-                        with open(output_path, 'w') as json_file:
-                            json.dump(json_data, json_file, indent=4)
-                except Exception as inner_e:
-                    print(f"❌ Could not create JSON for {filename}: {str(inner_e)}")
-        else:
-            print(f"Skipping (not an image): {filename}")
-
-    print("\nProcessing Statistics:")
-    print(f"Total images processed: {total_images}")
-    print(f"Successfully extracted all critical fields: {successful_extractions}")
-    print(f"Failed or missing critical fields: {failed_extractions}")
-    print(f"\nSuccessful extractions saved to: {output_dir}")
-    print(f"Failed extractions saved to: {fail_output_dir}")
-
-import shutil
-
 def prepare_data_for_qgis(folder_path):
     """
     Creates TO_QGIS folder containing .jpg + .json + .jpw for each valid image.
@@ -458,8 +470,95 @@ def prepare_data_for_qgis(folder_path):
             except Exception as e:
                 print(f" Failed copying files to TO_QGIS: {e}")
 
-import base64
-import re
+
+# -------------------------------
+# Main processing
+# -------------------------------
+
+def process_images_to_individual_json(folder_path):
+    output_dir = os.path.join(folder_path, "output")
+    fail_output_dir = os.path.join(folder_path, "fail_output")
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(fail_output_dir, exist_ok=True)
+
+    # NEW: נקרא את שם הרחפן מהקונפיג שתיקיית העבודה קיבלה מה-pipeline
+    drone_type = _read_drone_type_from_config(folder_path)
+    print(f"Using platformName (drone_type): {drone_type}")
+
+    print(f"Looking for images in: {folder_path}")
+    files = os.listdir(folder_path)
+    print(f"Found {len(files)} files")
+
+    total_images = 0
+    successful_extractions = 0
+    failed_extractions = 0
+
+    for filename in files:
+        if filename.lower().endswith(('.jpg', '.jpeg')):
+            total_images += 1
+            print(f"\nProcessing: {filename}")
+            full_path = os.path.join(folder_path, filename)
+
+            try:
+                with open(full_path, 'rb') as img_file:
+                    tags = exifread.process_file(img_file, details=True)
+                    lat, lon = extract_gps_info_from_tags(tags)
+
+                    los_fields = get_los_fields(full_path)
+                    relative_alt = extract_relative_altitude(full_path)
+
+                    has_los_fields = (los_fields["losAzimuth"] != 0.0 and
+                                      los_fields["losPitch"] != 0.0)
+                    has_relative_alt = relative_alt != 0.0
+
+                    # UPDATED: מעביר drone_type
+                    json_data = build_json_structure(filename, tags, lat, lon, full_path, drone_type)
+
+                    if has_los_fields and has_relative_alt:
+                        output_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.json")
+                        successful_extractions += 1
+                        print(f"✅ Successfully extracted critical fields: {output_path}")
+                    else:
+                        output_path = os.path.join(fail_output_dir, f"{os.path.splitext(filename)[0]}.json")
+                        failed_extractions += 1
+                        missing_fields = []
+                        if not has_los_fields:
+                            missing_fields.append("LOS fields (azimuth/pitch)")
+                        if not has_relative_alt:
+                            missing_fields.append("relative altitude")
+                        print(f"⚠️ Missing critical fields ({', '.join(missing_fields)}): {output_path}")
+
+                    with open(output_path, 'w', encoding='utf-8') as json_file:
+                        json.dump(json_data, json_file, indent=4, ensure_ascii=False)
+
+            except Exception as e:
+                failed_extractions += 1
+                print(f"❌ Failed to process {filename}: {str(e)}")
+                try:
+                    with open(full_path, 'rb') as img_file:
+                        tags = exifread.process_file(img_file, details=True)
+                        lat, lon = extract_gps_info_from_tags(tags)
+                        # UPDATED: גם במקרה שגיאה – עדיין מזריק platformName נכון
+                        json_data = build_json_structure(filename, tags, lat, lon, full_path, drone_type)
+                        output_path = os.path.join(fail_output_dir, f"{os.path.splitext(filename)[0]}.json")
+                        with open(output_path, 'w', encoding='utf-8') as json_file:
+                            json.dump(json_data, json_file, indent=4, ensure_ascii=False)
+                except Exception as inner_e:
+                    print(f"❌ Could not create JSON for {filename}: {str(inner_e)}")
+        else:
+            print(f"Skipping (not an image): {filename}")
+
+    print("\nProcessing Statistics:")
+    print(f"Total images processed: {total_images}")
+    print(f"Successfully extracted all critical fields: {successful_extractions}")
+    print(f"Failed or missing critical fields: {failed_extractions}")
+    print(f"\nSuccessful extractions saved to: {output_dir}")
+    print(f"Failed extractions saved to: {fail_output_dir}")
+
+
+# -------------------------------
+# Optional: LOG decoding (base64)
+# -------------------------------
 
 def extract_platform_data_from_log(log_file_path):
     """
@@ -504,5 +603,3 @@ def extract_platform_data_from_log(log_file_path):
             "platformPitch": 0.0,
             "platformRoll": 0.0
         }
-
-

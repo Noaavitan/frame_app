@@ -2,13 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="396af134-f400-4e0f-8993-7c261355e8b7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/image_select.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/opening.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/results.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/exiftool_setup.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/pipeline.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/image_to_json_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/image_to_json_generator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build_portable.ps1" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

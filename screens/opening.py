@@ -26,10 +26,14 @@ def build_opening_screen(on_start):
     )
 
     right = ft.Container(
-        content=ft.Image(src=DRONE_IMG, fit=ft.ImageFit.CONTAIN),
-        expand=1, padding=40,
+        content=ft.Image(
+            src="image/DRONE.gif",
+            width=500,  # רוחב בפיקסלים
+            height=500,  # גובה בפיקסלים
+            fit=ft.ImageFit.CONTAIN,
+        ),
+        padding=40,
     )
-
     layout = ft.Row(
         [
             ft.Container(content=left, expand=1, padding=20),

@@ -3,14 +3,17 @@ from __future__ import annotations
 import flet as ft
 import asyncio, os, pathlib
 from typing import List, Set
+
 from utils.pipeline import run_whitening
 from screens.results import build_results_screen
 from screens.opening import build_opening_screen
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".gif"}
 
+
 def _is_image(p: str) -> bool:
     return pathlib.Path(p).suffix.lower() in IMAGE_EXT
+
 
 def _gather_images_in_dir(dir_path: str) -> List[str]:
     paths: List[str] = []
@@ -21,10 +24,12 @@ def _gather_images_in_dir(dir_path: str) -> List[str]:
                 paths.append(full)
     return paths
 
+
 # תו LRM לאכיפת כיוון שמאל→ימין בתוך מסך RTL
 _LRM = "\u200E"
 def _ltr(s: str) -> str:
     return f"{_LRM}{s}{_LRM}"
+
 
 def build_image_select_screen(page: ft.Page):
     # --- Global layout direction ---
@@ -182,6 +187,7 @@ def build_image_select_screen(page: ft.Page):
     )
 
     async def on_submit_clicked(e):
+        # ולידציה בסיסית
         problems = []
         if not selected_drone.value:
             problems.append("• לא נבחר סוג רחפן")
@@ -198,33 +204,40 @@ def build_image_select_screen(page: ft.Page):
             error_text.value = ""
             page.update()
 
+        # דיאלוג התקדמות
         page.dialog = progress_dlg
         progress_dlg.open = True
         page.update()
 
         try:
-            proc = await asyncio.to_thread(
+            # >>> חשוב: סדר הפרמטרים ל-run_whitening <<<
+            # run_whitening(selected_paths, drone_type, log_path=None, skip_log=False)
+            result = await asyncio.to_thread(
                 run_whitening,
+                list(selected_files),
                 selected_drone.value,
                 None if no_log_cb.value else log_file["path"],
-                list(selected_files)
+                no_log_cb.value,
             )
         except Exception as err:
-            progress_dlg.open = False; page.update()
+            progress_dlg.open = False
+            page.update()
             error_text.value = f"שגיאה בעיבוד: {err}"
             page.update()
             return
+        finally:
+            progress_dlg.open = False
+            page.update()
 
-        progress_dlg.open = False
-        page.update()
-
+        # כפתור "הלבנה נוספת"
         def back_to_select(_):
             page.controls.clear()
             page.add(build_image_select_screen(page))
             page.update()
 
+        # מעבר למסך התוצאות
         page.controls.clear()
-        page.add(build_results_screen(page, proc, on_again=back_to_select))
+        page.add(build_results_screen(page, result, on_again=back_to_select))
         page.update()
 
     submit_btn = ft.ElevatedButton(
@@ -259,8 +272,8 @@ def build_image_select_screen(page: ft.Page):
 
     back_btn_container = ft.Container(
         content=back_btn,
-        alignment=ft.alignment.top_right,   # ← פינה ימנית-עליונה
-        padding=ft.Padding(0, 16, 16, 0),   # רווח מלמעלה ומימין
+        alignment=ft.alignment.top_right,
+        padding=ft.Padding(0, 16, 16, 0),
     )
 
     # --- Layout (כותרת בתוך הכרטיס) ---
@@ -293,8 +306,8 @@ def build_image_select_screen(page: ft.Page):
     # --- דף מלא: כפתור ימין-עליון + הכרטיס ממורכז ---
     return ft.Column(
         controls=[
-            back_btn_container,  # הכפתור בצד ימין-עליון
-            ft.Container(expand=True, alignment=ft.alignment.center, content=main_card),  # הכרטיס במרכז
+            back_btn_container,
+            ft.Container(expand=True, alignment=ft.alignment.center, content=main_card),
         ],
         expand=True,
     )

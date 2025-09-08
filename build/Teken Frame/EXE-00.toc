@@ -78,7 +78,7 @@
  [],
  False,
  False,
- 1756811707,
+ 1757327684,
  [('runw.exe',
    'C:\\Users\\galha\\OneDrive\\Desktop\\Gal\\IDF\\Padam\\frame_app\\.venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\runw.exe',
    'EXECUTABLE')],

@@ -3,9 +3,19 @@
   <component name="ChangeListManager">
     <list default="true" id="396af134-f400-4e0f-8993-7c261355e8b7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/image_to_json_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/image_to_json_generator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/image_select.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/image_select.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/pipeline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Teken Frame.spec" beforeDir="false" afterPath="$PROJECT_DIR$/Teken Frame.spec" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/Analysis-00.toc" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/Analysis-00.toc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/COLLECT-00.toc" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/COLLECT-00.toc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/EXE-00.toc" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/EXE-00.toc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/PYZ-00.pyz" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/PYZ-00.pyz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/Teken Frame.exe" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/Teken Frame.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/Teken Frame.pkg" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/Teken Frame.pkg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/base_library.zip" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/base_library.zip" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/Teken Frame/xref-Teken Frame.html" beforeDir="false" afterPath="$PROJECT_DIR$/build/Teken Frame/xref-Teken Frame.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build_portable.ps1" beforeDir="false" afterPath="$PROJECT_DIR$/build_portable.ps1" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/Teken Frame/Teken Frame.exe" beforeDir="false" afterPath="$PROJECT_DIR$/dist/Teken Frame/Teken Frame.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/Teken Frame/_internal/base_library.zip" beforeDir="false" afterPath="$PROJECT_DIR$/dist/Teken Frame/_internal/base_library.zip" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/opening.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/opening.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

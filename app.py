@@ -14,6 +14,7 @@ def main(page: ft.Page):
     page.vertical_alignment = "center"
     page.rtl = True
 
+
     # דיאלוג קצר בזמן הכנה
     setup_dlg = ft.AlertDialog(
         modal=True,

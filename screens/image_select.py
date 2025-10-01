@@ -25,7 +25,7 @@ def _gather_images_in_dir(dir_path: str) -> List[str]:
     return paths
 
 
-# תו LRM לאכיפת כיוון שמאל→ימין בתוך מסך RTL
+#  RTL
 _LRM = "\u200E"
 def _ltr(s: str) -> str:
     return f"{_LRM}{s}{_LRM}"
@@ -53,10 +53,9 @@ def build_image_select_screen(page: ft.Page):
     selected_files: Set[str] = set()
     files_counter = ft.Text("נבחרו 0 קבצי תמונה", size=14, color="#cccccc")
 
-    # הודעות שגיאה מתחת לכפתור שליחה
+    # error msg
     error_text = ft.Text("", color="#ff5252", size=13)
 
-    # דיאלוג התקדמות
     progress_dlg = ft.AlertDialog(
         modal=True,
         content=ft.Column(
@@ -204,14 +203,14 @@ def build_image_select_screen(page: ft.Page):
             error_text.value = ""
             page.update()
 
-        # דיאלוג התקדמות
+        # דיאלוג התקדמות + מצב טעינה לכפתור
         page.dialog = progress_dlg
         progress_dlg.open = True
-        page.update()
+        set_button_loading(True)
+        page.update()  # <<< היה await page.update_async()
 
         try:
-            # >>> חשוב: סדר הפרמטרים ל-run_whitening <<<
-            # run_whitening(selected_paths, drone_type, log_path=None, skip_log=False)
+            # הרצה בבקגראונד כדי לא לחסום את ה־UI
             result = await asyncio.to_thread(
                 run_whitening,
                 list(selected_files),
@@ -221,13 +220,17 @@ def build_image_select_screen(page: ft.Page):
             )
         except Exception as err:
             progress_dlg.open = False
-            page.update()
+            set_button_loading(False)
+            page.update()  # <<< היה await page.update_async()
             error_text.value = f"שגיאה בעיבוד: {err}"
             page.update()
             return
         finally:
             progress_dlg.open = False
-            page.update()
+
+        # במקרה של הצלחה – עוברים למסך התוצאות
+        set_button_loading(False)
+        page.update()  # <<< היה await page.update_async()
 
         # כפתור "הלבנה נוספת"
         def back_to_select(_):
@@ -245,6 +248,26 @@ def build_image_select_screen(page: ft.Page):
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
         on_click=on_submit_clicked,
     )
+
+    # --- פונקציית עזר: מצב טעינה לכפתור ---
+    def set_button_loading(is_loading: bool):
+        if is_loading:
+            submit_btn.disabled = True
+            submit_btn.content = ft.Row(
+                [
+                    ft.ProgressRing(width=16, height=16),
+                    ft.Text("מעבד...", color="white"),
+                ],
+                spacing=8,
+                alignment=ft.MainAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            )
+            submit_btn.text = None  # אין גם text וגם content
+        else:
+            submit_btn.disabled = False
+            submit_btn.content = None
+            submit_btn.text = "שלח להלבנה"
+        page.update()
 
     # ---- כפתור חזרה (ימין-עליון) בשורה ייעודית ----
     def back_to_opening(_):

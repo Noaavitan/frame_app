@@ -2,21 +2,17 @@
 from __future__ import annotations
 import flet as ft
 from pathlib import Path
-import sys
+import sys, os
 
 def _resource(rel_path: str) -> str:
     rel = Path(rel_path)
-    bases = []
-    if getattr(sys, "frozen", False):
-        exe_dir = Path(sys.executable).parent
-        bases += [exe_dir, exe_dir / "_internal"]
-    else:
-        bases += [Path(__file__).resolve().parent.parent, Path.cwd()]
 
-    for b in bases:
-        p = (b / rel).resolve()
-        if p.exists():
-            return str(p)
+    if hasattr(sys, "_MEIPASS"):  #  exe
+        base = Path(sys._MEIPASS)
+        return str(base / rel)
+
+    #  כשמריצים ישירות עם python
+    return str(Path(__file__).resolve().parent.parent / rel)
 
     target_lower = rel.name.lower()
     for b in bases:
@@ -28,11 +24,11 @@ def _resource(rel_path: str) -> str:
     return rel_path
 
 DRONE_IMG = _resource("image/Drone.gif")
-LOGO_IMG = _resource("image/logo.png")   # ← נוסיף את הלוגו
+LOGO_IMG = _resource("image/logo.png")   #  הלוגו
 
 
 def build_opening_screen(on_start):
-    # לוגו גדול יותר
+
     title = (
         ft.Image(src=LOGO_IMG, width=950, height=200, fit=ft.ImageFit.CONTAIN)
         if Path(LOGO_IMG).exists()
@@ -54,28 +50,28 @@ def build_opening_screen(on_start):
     left = ft.Column(
         [title, start_btn],
         spacing=0,
-        alignment=ft.MainAxisAlignment.CENTER,            # מרכז אנכית
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER # מרכז אופקית
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER
     )
 
-    # הרחפן קרוב יותר למרכז:
+
     right_content = (
         ft.Image(src=DRONE_IMG, width=600, height=600, fit=ft.ImageFit.CONTAIN)
         if Path(DRONE_IMG).exists()
         else ft.Text("התמונה Drone.gif לא נמצאה", color="#ff8a80")
     )
 
-    # פחות Padding משמאל + יישור לשמאל, כדי להצמיד לגבול האמצעי
+
     right = ft.Container(
         content=right_content,
-        padding=ft.Padding(150, 20, 20, 20),               # היה 40 מכל הצדדים
-        alignment=ft.alignment.center_left                # קרוב לאמצע המסך
+        padding=ft.Padding(150, 20, 20, 20),
+        alignment=ft.alignment.center_left
     )
 
     return ft.Row(
         [
-            ft.Container(content=left, expand=6, padding=10),  # שמאל צר יותר
-            ft.Container(content=right, expand=4),             # ימין רחב יותר
+            ft.Container(content=left, expand=6, padding=10),
+            ft.Container(content=right, expand=4),
         ],
         expand=True,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
